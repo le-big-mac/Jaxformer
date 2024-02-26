@@ -73,14 +73,14 @@ def init_decoder_layer(rng, num_heads, d_model, d_k, d_v):
     feedforward_biases = jax.random.normal(rng, (d_model,))
     return attention_weights, linear_weights, feedforward_weights, feedforward_biases
 
-def output_layer(x, output_weights, output_biases):
+def output_layer(x, output_weights, output_biases, temp=1.):
     """
     x : (batch, seq_len, d_model)
     output_weights : (seq_len*d_model, vocab_size)
     output_biases : (vocab_size,)
     Maybe should mask padding tokens?
     """
-    return softmax(linear(x.reshape(x.shape[0], -1), output_weights, output_biases))
+    return softmax(linear(x.reshape(x.shape[0], -1), output_weights, output_biases), temp=temp)
 
 def init_output_layer(rng, seq_len, d_model, vocab_size):
     output_weights = jax.random.normal(rng, (seq_len*d_model, vocab_size))

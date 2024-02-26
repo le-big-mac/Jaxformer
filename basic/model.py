@@ -3,7 +3,7 @@ import jax.numpy as jnp
 
 from .layers import *
 
-def get_model(num_decoder_layers):
+def get_model(num_decoder_layers, temp=1.):
     # This is dumb, but lets me make optimizers more general
     def model(param_dict: dict,
               x: jnp.ndarray,
@@ -14,7 +14,7 @@ def get_model(num_decoder_layers):
             fw = param_dict[f'fw_{i}']
             fb = param_dict[f'fb_{i}']
             x = decoder_layer(x, aw, lw, fw, fb)
-        return output_layer(x, param_dict['ow'], param_dict['ob'])
+        return output_layer(x, param_dict['ow'], param_dict['ob'], temp=temp)
 
     return model
 

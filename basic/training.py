@@ -2,8 +2,8 @@ from jax import jit
 import jax.numpy as jnp
 
 def get_cross_entropy_loss(model):
-    def cross_entropy_loss(param_dict, x, y):
-        return -jnp.sum(y * jnp.log(model(param_dict, x))) / x.shape[0]
+    def cross_entropy_loss(param_dict, positional_encoding, x, y):
+        return -jnp.sum(y * jnp.log(model(param_dict, positional_encoding, x))) / x.shape[0]
     return jit(cross_entropy_loss)
 
 @jit

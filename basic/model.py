@@ -6,9 +6,10 @@ from basic.layers import *
 def get_model(num_decoder_layers, temp=1., layer_norm=True):
     # This is dumb, but lets me make optimizers more general
     def model(param_dict: dict,
+              positional_encoding: jnp.ndarray,
               x: jnp.ndarray,
               ):
-        x = embedding(x, param_dict['embeddings'])
+        x = embedding(x, param_dict['embeddings']) + positional_encoding
         for i in range(num_decoder_layers):
             qkw = param_dict[f'qkw_{i}']
             vw = param_dict[f'vw_{i}']
@@ -21,7 +22,7 @@ def get_model(num_decoder_layers, temp=1., layer_norm=True):
     return model
 
 def batch_model(model):
-    return jax.vmap(model, in_axes=(None, 0), out_axes=0)
+    return jax.vmap(model, in_axes=(None, None, 0), out_axes=0)
 
 def init_model(rng, num_decoder_layers, num_heads, d_model, d_k, d_v, seq_len, vocab_size):
     keys = jax.random.split(rng, num_decoder_layers + 1)

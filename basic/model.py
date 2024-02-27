@@ -20,6 +20,9 @@ def get_model(num_decoder_layers, temp=1., layer_norm=True):
 
     return model
 
+def batch_model(model):
+    return jax.vmap(model, in_axes=(None, 0), out_axes=0)
+
 def init_model(rng, num_decoder_layers, num_heads, d_model, d_k, d_v, seq_len, vocab_size):
     keys = jax.random.split(rng, num_decoder_layers + 1)
     param_dict = {}

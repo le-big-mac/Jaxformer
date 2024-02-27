@@ -1,4 +1,4 @@
-A transformer project in pure Jax (using only jnp), that I will occasionally update with new stuff (e.g. [BlockAttention](https://arxiv.org/abs/2305.19370) at some point).
+A transformer project in pure Jax (using only jnp, no jax.nn), that I will occasionally update with new stuff (e.g. [BlockAttention](https://arxiv.org/abs/2305.19370) at some point).
 
 This is mainly an academic exercise, to improve my understanding of transformers and Jax. It almost certainly does not follow Jax best practices.
 

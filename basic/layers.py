@@ -1,7 +1,7 @@
 import jax
 import jax.numpy as jnp
 
-from .activations import gelu, softmax
+from basic.activations import gelu, softmax
 
 def linear(x, W, b=None):
     """
@@ -32,17 +32,19 @@ def dot_product_attention(Q, K, V, mask):
 def embedding(x, embeddings):
     return jnp.take(embeddings, x, axis=0)
 
-def multi_head_attention(x, attention_weights, linear_weights, d_k):
+def multi_head_attention(x, qk_weights, v_weights, linear_weights):
     """
     x : (batch, seq_len, d_model)
-    attention_weights : (num_heads, d_model, 2*d_k + d_v)
+    qk_weights : (num_heads, d_model, 2*d_k)
+    v_weights : (num_heads, d_model, d_v)
     linear_weights : (num_heads*d_v, d_model)
     """
     x = jnp.expand_dims(x, axis=2)
-    combined = linear(x, attention_weights)
-    Q, K, V = jnp.split(combined, [d_k, 2*d_k], axis=-1) # d_v can be inferred from attention_weights and d_k
+    qk = linear(x, qk_weights) # (batch, seq_len, num_heads, 2*d_k)
+    Q, K = jnp.split(qk, 2, axis=-1)
+    V = linear(x, v_weights) # (batch, seq_len, num_heads, d_v)
     mask = jnp.triu(jnp.ones((x.shape[1], x.shape[1])), 1) == 0
-    mask = jnp.broadcast_to(mask, (x.shape[0], attention_weights.shape[1], *mask.shape))
+    mask = jnp.broadcast_to(mask, (x.shape[0], qk_weights.shape[0], *mask.shape))
 
     attention_matrix = dot_product_attention(Q, K, V, mask)
     ff_out = linear(attention_matrix.reshape(attention_matrix.shape[0], attention_matrix.shape[1], -1), linear_weights) # if num_heads*d_v = d_model, linear_weights could be identity
@@ -53,25 +55,32 @@ def layer_normalization(x):
     std = jnp.std(x, axis=-1, keepdims=True)
     return (x - mean) / std
 
-def decoder_layer(x, attention_weights, linear_weights, feedforward_weights, feedforward_biases):
+def decoder_layer(x, qk_weights, v_weights, linear_weights, feedforward_weights, feedforward_biases, layer_norm=True):
     """
     N.B. Not exactly same as decoder in encoder-decoder architecture, but convention is to call it decoder layer.
     x : (batch, seq_len, d_model)
-    attention_weights : (num_heads, d_model, 2*d_k + d_v)
+    qk_weights : (num_heads, d_model, 2*d_k)
+    v_weights : (num_heads, d_model, d_v)
     feedforward_weights : (d_model, d_model)
     feedforward_biases : (d_model,)
     """
-    attention_output = multi_head_attention(x, attention_weights, linear_weights) # (batch, seq_len, d_model)
-    x = layer_normalization(x + attention_output)
-    x = layer_normalization(x + gelu(linear(x, feedforward_weights) + feedforward_biases))
+    attention_output = multi_head_attention(x, qk_weights, v_weights, linear_weights) # (batch, seq_len, d_model)
+    if layer_norm:
+        x = layer_normalization(x + attention_output)
+        x = layer_normalization(x + gelu(linear(x, feedforward_weights) + feedforward_biases))
+    else:
+        x = x + attention_output
+        x = x + gelu(linear(x, feedforward_weights) + feedforward_biases)
     return x
 
 def init_decoder_layer(rng, num_heads, d_model, d_k, d_v):
-    attention_weights = jax.random.normal(rng, (num_heads, d_model, 2*d_k + d_v))
-    linear_weights = jax.random.normal(rng, (num_heads*d_v, d_model))
-    feedforward_weights = jax.random.normal(rng, (d_model, d_model))
-    feedforward_biases = jax.random.normal(rng, (d_model,))
-    return attention_weights, linear_weights, feedforward_weights, feedforward_biases
+    keys = jax.random.split(rng, 4)
+    qk_weights = jax.random.normal(keys[0], (num_heads, d_model, 2*d_k)) / jnp.sqrt(d_model + d_k)
+    v_weights = jax.random.normal(keys[1], (num_heads, d_model, d_v)) / jnp.sqrt(d_model + d_v)
+    linear_weights = jax.random.normal(keys[1], (num_heads*d_v, d_model)) / jnp.sqrt(num_heads*d_v + d_v)
+    feedforward_weights = jax.random.normal(keys[2], (d_model, d_model)) / jnp.sqrt(d_model + d_model)
+    feedforward_biases = jax.random.normal(keys[3], (d_model,))
+    return qk_weights, v_weights, linear_weights, feedforward_weights, feedforward_biases
 
 def output_layer(x, output_weights, output_biases, temp=1.):
     """
@@ -83,6 +92,7 @@ def output_layer(x, output_weights, output_biases, temp=1.):
     return softmax(linear(x.reshape(x.shape[0], -1), output_weights, output_biases), temp=temp)
 
 def init_output_layer(rng, seq_len, d_model, vocab_size):
-    output_weights = jax.random.normal(rng, (seq_len*d_model, vocab_size))
-    output_biases = jax.random.normal(rng, (vocab_size,))
+    keys = jax.random.split(rng, 2)
+    output_weights = jax.random.normal(keys[0], (seq_len*d_model, vocab_size)) / jnp.sqrt(seq_len*d_model + vocab_size)
+    output_biases = jax.random.normal(keys[1], (vocab_size,))
     return output_weights, output_biases

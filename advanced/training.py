@@ -13,7 +13,7 @@ def adam_update(param_dict, grads, learning_rate, m, v, t, beta1=0.9, beta2=0.99
         v_hat = v[k] / (1 - beta2**t)
         new_param_dict[k] = param_dict[k] - learning_rate * m_hat / (jnp.sqrt(v_hat) + eps)
 
-    return param_dict, m, v
+    return new_param_dict, m, v
 
 def init_adam_params(param_dict):
     m = {k: jnp.zeros_like(v) for k, v in param_dict.items()}

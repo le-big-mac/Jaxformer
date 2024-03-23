@@ -7,6 +7,7 @@ def linear(x, W, b=None):
     """
     x : (..., d_in)
     W : (..., d_in, d_out)
+    b : (..., d_out)
     N.B. Be careful with shapes of x and W, as they are not explicitly checked.
     """
     if b is None:
@@ -74,12 +75,12 @@ def decoder_layer(x, qk_weights, v_weights, linear_weights, feedforward_weights,
     return x
 
 def init_decoder_layer(rng, num_heads, d_model, d_k, d_v):
-    keys = jax.random.split(rng, 4)
+    keys = jax.random.split(rng, 5)
     qk_weights = jax.random.normal(keys[0], (num_heads, d_model, 2*d_k)) / jnp.sqrt(d_model + d_k)
     v_weights = jax.random.normal(keys[1], (num_heads, d_model, d_v)) / jnp.sqrt(d_model + d_v)
-    linear_weights = jax.random.normal(keys[1], (num_heads*d_v, d_model)) / jnp.sqrt(num_heads*d_v + d_v)
-    feedforward_weights = jax.random.normal(keys[2], (d_model, d_model)) / jnp.sqrt(d_model + d_model)
-    feedforward_biases = jax.random.normal(keys[3], (d_model,))
+    linear_weights = jax.random.normal(keys[2], (num_heads*d_v, d_model)) / jnp.sqrt(num_heads*d_v + d_v)
+    feedforward_weights = jax.random.normal(keys[3], (d_model, d_model)) / jnp.sqrt(d_model + d_model)
+    feedforward_biases = jax.random.normal(keys[4], (d_model,))
     return qk_weights, v_weights, linear_weights, feedforward_weights, feedforward_biases
 
 def output_layer(x, output_weights, output_biases, temp=1.):
